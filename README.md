@@ -229,7 +229,8 @@ This scorecard is part of that infrastructure — providing objective criteria t
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v1.0 | January 2026 | Initial release |
+| v1.1-draft | September 2026 | Inherited-credential/delegation-boundary criteria (SC-4.4, SC-4.5), earned autonomy (SC-5.4), GFT theoretical basis, SC-x.y numbering, governance protocol |
+| v1.0 | January 2026 | Initial release — 22 criteria across 6 dimensions |
 
 We anticipate updates as enterprise AI governance practices mature. Major version changes will reflect significant criteria additions or modifications.
 
