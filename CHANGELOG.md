@@ -15,6 +15,7 @@ All notable changes to the Agent Governance Scorecard.
 - Issue templates for proposed-change, gap-report, and evidence-challenge
 
 ### Changed
+- Clarified that the minimum-link aggregate is a declared scoring convention, not a GFT-derived bound; no scoring changes
 - Criteria numbered as **SC-x.y** for stable public-comment references
 - Scoring thresholds adjusted for 25 criteria (from 22)
 - Non-compensable scoring model made explicit in scoring section

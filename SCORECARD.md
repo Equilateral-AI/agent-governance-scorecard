@@ -11,7 +11,7 @@
 1. Rate each criterion: **Yes** | **Partial** | **No**
 2. Evidence required — demos, docs, or live system access
 3. Roadmaps don't count — only current capabilities
-4. Each dimension is non-compensable — strength in one dimension cannot offset weakness in another; governance fidelity is bounded by the weakest link in the chain
+4. Each dimension is non-compensable — strength in one dimension cannot offset weakness in another. The scorecard's minimum-link aggregate is a declared conservative scoring convention; a critical failure at one transformation must not be concealed by strengths elsewhere
 
 ---
 
@@ -119,7 +119,7 @@ Each dimension is non-compensable: a platform scoring "Yes" on all criteria in f
 
 This scorecard's six dimensions — Control Towers, Decision Integrity, Observability, Governance Enforcement, Human-in-the-Loop, and System Evolution — are derived from Governance Fidelity Theory (GFT).
 
-GFT models governance as a fidelity chain: governing intent (what the principal wants enforced) passes through successive transformations — specification, encoding, injection, interpretation, execution, observation — and each transformation can degrade the signal. Governance fidelity is bounded by the weakest link in this chain, not by the average. A system with perfect observability but no enforcement has zero governance fidelity at the enforcement link, regardless of its observability score.
+GFT models governance as a fidelity chain: governing intent (what the principal wants enforced) passes through successive transformations — specification, encoding, injection, interpretation, execution, observation — and each transformation can degrade the signal. GFT's weakest-link principle is a design heuristic: a critical failure at one transformation must not be concealed by strengths elsewhere. GFT does not establish a universal numerical bound on end-to-end fidelity. A system with perfect observability but no enforcement has zero governance fidelity at the enforcement link, regardless of its observability score.
 
 The six dimensions map to the surfaces where fidelity loss is observable and measurable:
 
