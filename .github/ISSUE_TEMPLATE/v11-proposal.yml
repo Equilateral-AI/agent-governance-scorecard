@@ -1,0 +1,73 @@
+name: v1.1 Proposal
+description: Propose a change to the Agent Governance Scorecard for v1.1
+title: "[v1.1] "
+labels: ["v1.1-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose a change to the v1.0 scorecard for consideration in v1.1.
+        See [CONTRIBUTING.md](../../blob/main/CONTRIBUTING.md) for the full process.
+
+  - type: dropdown
+    id: dimension
+    attributes:
+      label: Dimension affected
+      description: Which dimension or section of the v1.0 scorecard does this proposal target?
+      options:
+        - "1 -- Control Towers"
+        - "2 -- Audit & Compliance"
+        - "3 -- Human Oversight"
+        - "4 -- Security & Access Control"
+        - "5 -- Reliability & Safety"
+        - "6 -- Integration & Interoperability"
+        - "Scope of Applicability"
+        - "Methodology / Scoring"
+        - "New dimension or cross-cutting"
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-text
+    attributes:
+      label: Current text
+      description: Quote the relevant text from v1.0 that your proposal changes or extends. For new additions, write "N/A -- new content."
+      placeholder: Paste the current scorecard text here
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-change
+    attributes:
+      label: Proposed change
+      description: What should the text say instead, or what should be added?
+      placeholder: State your proposed change clearly
+    validations:
+      required: true
+
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Why is this change needed? What problem does it solve? Include implementation experience, incident evidence, or specification references where available.
+      placeholder: Explain why this change improves the scorecard
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting evidence (optional)
+      description: Links to implementations, incident reports, related standards, or other evidence that supports the proposal.
+      placeholder: URLs, references, or descriptions of supporting evidence
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Disclosure
+      description: Transparency about interests
+      options:
+        - label: I have disclosed any relevant affiliations or commercial interests in the rationale above
+          required: true
