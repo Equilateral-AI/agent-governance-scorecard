@@ -18,6 +18,10 @@ To participate, [open an issue using the v1.1 Proposal template](https://github.
 
 See the [comment-period announcement](https://github.com/Equilateral-AI/agent-governance-scorecard/issues/3), [open proposals](https://github.com/Equilateral-AI/agent-governance-scorecard/issues?q=is%3Aissue%20is%3Aopen%20label%3Av1.1-proposal), and [CONTRIBUTING.md](CONTRIBUTING.md) for the process.
 
+## Contribution progress
+
+See [PROGRESS.md](PROGRESS.md) for our AgentBaseline filings, proposals in this repository, external responses, and outstanding follow-up work.
+
 ## About
 
 Six dimensions, 20 criteria for evaluating agent governance. The scorecard provides objective criteria for evaluating any AI agent platform's governance readiness.
