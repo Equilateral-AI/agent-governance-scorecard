@@ -34,6 +34,8 @@ No adoption is confirmed in these reviewed threads. Proposed identifiers are not
 
 A scorecard-to-baseline crosswalk (`crosswalks/equilateral-scorecard.yaml`) has been submitted as a PR to the AgentBaseline repository, per their CONTRIBUTING.md request for external crosswalk contributions. It maps all 25 scorecard criteria to the 35 baseline controls with gap annotations in both directions. Filed October 18.
 
+A Raknor standard-to-baseline crosswalk (`crosswalks/raknor-standard.yaml`) has also been submitted. It maps all 26 Raknor controls (SC-AG-01–06, SC-OB-01–05, SC-IO-01–04, SC-SR-01–06, SC-AD-01–05) and 7 mandatory failure conditions to the 35 baseline controls, with strength ratings and gap annotations. Includes reverse gaps identifying 15 baseline controls with no Raknor equivalent — primarily in Discover and Respond outcomes. Filed October 18.
+
 ## Evidence schema collaboration
 
 [AgentBaseline #26](https://github.com/agentbaseline/agentbaseline/issues/26) is an external contribution by imran-siddique, not one of our five filings. Our participation has progressed from discussion to an explicit field-set commitment:
@@ -61,7 +63,7 @@ The concrete source artifacts are available: [signed fixtures and checker](https
 ## Next deliverables
 
 1. Draft a format-neutral field set with examples and explicit non-guarantees, mapped to the available receipt and claim-verifiability artifacts.
-2. ~~Crosswalk the field set to the scorecard's Observability and Decision Integrity dimensions and the Raknor published control IDs.~~ Partial: scorecard-to-baseline crosswalk filed October 18; Raknor control mapping remains.
+2. ~~Crosswalk the field set to the scorecard's Observability and Decision Integrity dimensions and the Raknor published control IDs.~~ Complete: scorecard-to-baseline and Raknor-to-baseline crosswalks both filed October 18.
 3. Prepare the verification-corpus matrix and before/after-outcome timing vectors; record independently rerun results separately from contributor reports.
 4. Evaluate the three new proposals (#5, #6, #7) through the v1.1 disposition process. Each cross-references specific AgentBaseline issues; dispositions should note alignment or divergence.
 5. Independently rerun babyblueviper1's OBS-06 vectors (`check.py`, 6/6) and record results. The tolerance vector and the modified-record vector are the ones that load-bear on SC-3.4.
