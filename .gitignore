@@ -1,0 +1,14 @@
+
+# Machine-local config and credentials (credential-scan v1).
+# Tokens and keys live only in the MindMeld-governed store, never in GitHub.
+.mcp.json
+.codex/config.toml
+.myworld.json
+.claude/settings.local.json
+.claude/worktrees/
+.mindmeld/
+.env
+.env.*
+!.env.example
+!.env.*.example
+.DS_Store

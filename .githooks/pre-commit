@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Credential scan pre-commit hook (credential-scan v1).
+# Canonical: Equilateral-AI/equilateral-common tools/credential-scan/pre-commit
+# Enable once per clone: git config core.hooksPath .githooks
+# Blocks the commit when a staged file holds a credential or a machine-local
+# config path (.mcp.json, .codex/config.toml, .env*, .myworld.json,
+# .claude/settings.local.json, .mindmeld/) is staged. Prints path:line:class only.
+root="$(git rev-parse --show-toplevel)" || exit 1
+for s in scripts/credential-scan.sh tools/credential-scan/credential-scan.sh; do
+  [ -f "$root/$s" ] && exec bash "$root/$s" --staged
+done
+echo "credential-scan: scanner not found (scripts/credential-scan.sh)" >&2
+exit 1
