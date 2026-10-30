@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# credential-scan v1
+# credential-scan v2
 #
 # Canonical copy: Equilateral-AI/equilateral-common, tools/credential-scan/credential-scan.sh
 # Adopting repos vendor this file unchanged at scripts/credential-scan.sh, plus
@@ -20,6 +20,16 @@
 # Output is path:line:class only. Matched values are never printed.
 # Exit status: 0 clean, 1 findings, 2 usage error.
 #
+# v2 (2026-10-29): placeholder detection is value-shaped. Each match is judged on
+# its own extracted value (key body, header/bearer literal, quoted or assigned
+# value), never on other words elsewhere on the line, so a real credential on a
+# line that also says "example", "sample" or "placeholder" is still flagged.
+# A value is a placeholder only when the value itself is a ${VAR}/$VAR/{{..}}/<..>
+# reference, an env-var name, a process.env/os.environ/getenv reference, a run of
+# one character or of x/X/*/0, or is built from placeholder words (your_...,
+# changeme, example, sample, placeholder, redacted, dummy, fake, xxx, ...).
+# AWS documented example keys (ending in EXAMPLE) stay excluded.
+#
 # Suppression:
 #   .credential-scan-ignore   one git pathspec glob per line (fixtures, vendored code)
 #   credential-scan:allow     marker on a line skips that line (use for documented placeholders)
@@ -32,7 +42,7 @@ export LC_ALL=C
 MODE="${1:---tracked}"
 case "$MODE" in
   --staged|--tracked|--history) ;;
-  -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+  -h|--help) sed -n '2,36p' "$0"; exit 0 ;;
   *) echo "usage: $0 [--staged|--tracked|--history]" >&2; exit 2 ;;
 esac
 
@@ -40,8 +50,8 @@ git rev-parse --git-dir >/dev/null 2>&1 || { echo "credential-scan: not a git re
 cd "$(git rev-parse --show-toplevel)" || exit 2
 
 # ---------------------------------------------------------------------------
-# Credential classes (ERE). Each is a candidate filter; values are checked
-# against PLACEHOLDER below inside awk and never written to output.
+# Credential classes (ERE). Each is a candidate filter; each matched value is judged
+# by JUDGE_AWK below (value-shaped placeholder rule) and never written to output.
 # ---------------------------------------------------------------------------
 RE_MM_KEY='(^|[^A-Za-z0-9_])(mm_(ro|rw|admin|recorder|witness|sensor|live)_|mmw_([a-z]+_)?)[A-Za-z0-9]{16,}'
 RE_MM_HEADER='x-mindmeld-token["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}'
@@ -51,8 +61,63 @@ RE_PRIVKEY='-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----'
 RE_GENERIC_QUOTED='(api[_-]?key|apikey|secret[_-]?key|client[_-]?secret|app[_-]?password|access[_-]?key|password|passwd)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"'[:space:]$<{]{12,}["'"'"']'
 RE_GENERIC_ENV='^[[:space:]]*(export[[:space:]]+)?[A-Za-z0-9_]*(api_?key|secret|password|passwd|private_key|access_key|_token)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*["'"'"']?[^"'"'"'[:space:]$<{#]{8,}'
 
-# Values that are obviously placeholders (checked case-insensitively).
-PLACEHOLDER='example|env_var|placeholder|changeme|change_me|your[_-]|<[a-z_-]+>|xxxxxxxx|redacted|dummy|sample|fake|[*][*][*][*]|0000000000000000|process[.]env|os[.]environ|getenv'
+# Value-shaped placeholder judge (awk). Input lines are "path:line:match" where
+# match is the text the class regex matched (git grep -o). The value is extracted
+# per class and judged on its own; the rest of the line is never consulted.
+# Prints path:line:class for every match whose value is not placeholder-shaped.
+# Written without regex intervals so it runs on mawk, gawk and BSD awk.
+JUDGE_AWK='
+function is_placeholder(v,   lv, t, n, i, tk, c, same) {
+  lv = tolower(v)
+  if (length(v) == 0) return 1
+  # References in value position.
+  if (lv ~ /^[$%<]/ || index(lv, "${") || index(lv, "{{") || index(lv, "<")) return 1
+  if (index(lv, "process.env") || index(lv, "os.environ") || index(lv, "getenv")) return 1
+  # Environment-variable NAME used as the value (e.g. bearer_token_env_var = SOME_TOKEN_NAME).
+  if (v ~ /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/) return 1
+  # Masking runs: only x, *, 0, #, ., -, _ characters.
+  t = lv; gsub(/[x*0#._-]/, "", t); if (t == "") return 1
+  # One repeated character.
+  c = substr(lv, 1, 1); same = 1
+  for (i = 2; i <= length(lv); i++) if (substr(lv, i, 1) != c) { same = 0; break }
+  if (same) return 1
+  # Placeholder words forming the value.
+  if (lv ~ /^your/ || index(lv, "change_me") || index(lv, "change-me")) return 1
+  n = split(lv, tk, /[^a-z0-9]+/)
+  for (i = 1; i <= n; i++) {
+    if (tk[i] in PW) return 1
+    if (length(tk[i]) >= 3 && tk[i] ~ /^x+$/) return 1
+  }
+  return 0
+}
+function value_of(cls, m,   v, k) {
+  v = m
+  if (cls == "mindmeld_key") { sub(/^.*_/, "", v); return v }
+  if (cls == "aws_access_key") { gsub(/[^A-Z0-9]/, "", v); return v }
+  if (cls == "bearer_literal") { sub(/^.*[ \t]/, "", v); return v }
+  if (cls == "mindmeld_header_literal") { sub(/^[^:=]*[:=][ \t]*["\047]?/, "", v); return v }
+  if (cls == "generic_quoted") { sub(/^.*[:=][ \t]*["\047]/, "", v); sub(/["\047]$/, "", v); return v }
+  if (cls == "generic_env") {
+    k = index(v, "="); v = substr(v, k + 1)
+    sub(/^[ \t]*["\047]?/, "", v); return v
+  }
+  return v
+}
+BEGIN {
+  split("example examples sample samples placeholder changeme redacted dummy fake your yours replaceme replace_me insert here todo tbd", a, " ")
+  for (i in a) PW[a[i]] = 1
+  if (allow != "") while ((getline l < allow) > 0) A[l] = 1
+}
+{
+  i = index($0, ":"); if (i == 0) next
+  path = substr($0, 1, i - 1); rest = substr($0, i + 1)
+  j = index(rest, ":"); if (j == 0) next
+  ln = substr(rest, 1, j - 1); m = substr(rest, j + 1)
+  if ((path ":" ln) in A) next
+  if (cls == "aws_access_key") { v = value_of(cls, m); if (v ~ /EXAMPLE$/) next }
+  if (is_placeholder(value_of(cls, m))) next
+  print path ":" ln ":" outcls
+}'
 
 # Machine-local paths that must never be tracked unless named *.example, *.template or *.sample.
 RE_FORBIDDEN_PATH='(^|/)(\.mcp\.json|\.codex/config\.toml|\.env|\.env\.[^/]+|\.myworld\.json|\.claude/settings\.local\.json|\.mindmeld/.*)$'
@@ -78,9 +143,14 @@ if [ "$MODE" = "--history" ]; then
               "private_key_header|$RE_PRIVKEY|"; do
     cls="${spec%%|*}"; rest="${spec#*|}"; re="${rest%|*}"; flag="${rest##*|}"
     if [ "$flag" = i ]; then gflag=-iE; else gflag=-E; fi
-    n=$(git log -p --all --no-color --format= -- . "${EXCLUDES[@]}" 2>/dev/null \
-        | grep '^+' | grep -v 'credential-scan:allow' | grep $gflag -e "$re" \
-        | grep -viE -e "$PLACEHOLDER" | grep -c .)
+    if [ "$cls" = private_key_header ]; then
+      n=$(git log -p --all --no-color --format= -- . "${EXCLUDES[@]}" 2>/dev/null \
+          | grep '^+' | grep -v 'credential-scan:allow' | grep $gflag -e "$re" | grep -c .)
+    else
+      n=$(git log -p --all --no-color --format= -- . "${EXCLUDES[@]}" 2>/dev/null \
+          | grep '^+' | grep -v 'credential-scan:allow' | grep -o $gflag -e "$re" \
+          | sed 's/^/h:0:/' | awk -v cls="$cls" -v outcls="$cls" -v allow= "$JUDGE_AWK" | grep -c .)
+    fi
     echo "history:$cls:$n"
     total=$((total + n))
   done
@@ -115,35 +185,31 @@ file_list() {
   fi
 }
 
-# filter_hits CLASS: reads git grep "path:line:content", drops allow-marked and
-# placeholder lines, prints path:line:class. Content is discarded here.
-filter_hits() {
-  awk -v cls="$1" -v ph="$PLACEHOLDER" '{
-    i = index($0, ":"); if (i == 0) next
-    path = substr($0, 1, i - 1); rest = substr($0, i + 1)
-    j = index(rest, ":"); if (j == 0) next
-    ln = substr(rest, 1, j - 1); content = substr(rest, j + 1)
-    if (index(content, "credential-scan:allow")) next
-    if (tolower(content) ~ ph) next
-    print path ":" ln ":" cls
-  }'
-}
+# Lines carrying the credential-scan:allow marker, as path:line, for this file set.
+ALLOW_TMP=$(mktemp "${TMPDIR:-/tmp}/credscan.XXXXXX") || exit 2
+trap 'rm -f "$FILES_TMP" "$FIND_TMP" "$ALLOW_TMP"' EXIT
+file_list \
+  | xargs -0 -r git grep --cached -I -n -F -e 'credential-scan:allow' -- "${EXCLUDES[@]}" 2>/dev/null \
+  | awk '{ i = index($0, ":"); p = substr($0, 1, i - 1); r = substr($0, i + 1); j = index(r, ":"); print p ":" substr(r, 1, j - 1) }' \
+  > "$ALLOW_TMP"
 
-# scan CLASS GREPFLAGS REGEX [PATH_ERE]
+# scan CLASS JUDGECLASS GREPFLAGS REGEX [PATH_ERE]
+# git grep -o yields one "path:line:match" per match, so each value on a line is
+# judged separately; the awk judge discards the matched text and prints path:line:class.
 scan() {
-  file_list "${4:-}" \
-    | xargs -0 -r git grep --cached -I -n "$2" -e "$3" -- "${EXCLUDES[@]}" 2>/dev/null \
-    | filter_hits "$1"
+  file_list "${5:-}" \
+    | xargs -0 -r git grep --cached -I -n -o "$3" -e "$4" -- "${EXCLUDES[@]}" 2>/dev/null \
+    | awk -v cls="$2" -v outcls="$1" -v allow="$ALLOW_TMP" "$JUDGE_AWK"
 }
 
 ENV_FILES='(^|/)(\.env|\.env\.[^/]+|[^/]+\.env|\.myENV|[^/]+\.(sh|ini|cfg|conf|properties|toml))$'
 
-scan mindmeld_key            -E  "$RE_MM_KEY"                       >> "$FIND_TMP"
-scan mindmeld_header_literal -iE "$RE_MM_HEADER"                    >> "$FIND_TMP"
-scan bearer_literal          -iE "$RE_BEARER"                       >> "$FIND_TMP"
-scan aws_access_key          -E  "$RE_AWS"                          >> "$FIND_TMP"
-scan generic_api_key         -iE "$RE_GENERIC_QUOTED"               >> "$FIND_TMP"
-scan generic_api_key         -iE "$RE_GENERIC_ENV"    "$ENV_FILES"  >> "$FIND_TMP"
+scan mindmeld_key            mindmeld_key            -E  "$RE_MM_KEY"                      >> "$FIND_TMP"
+scan mindmeld_header_literal mindmeld_header_literal -iE "$RE_MM_HEADER"                   >> "$FIND_TMP"
+scan bearer_literal          bearer_literal          -iE "$RE_BEARER"                      >> "$FIND_TMP"
+scan aws_access_key          aws_access_key          -E  "$RE_AWS"                         >> "$FIND_TMP"
+scan generic_api_key         generic_quoted          -iE "$RE_GENERIC_QUOTED"              >> "$FIND_TMP"
+scan generic_api_key         generic_env             -iE "$RE_GENERIC_ENV"   "$ENV_FILES"  >> "$FIND_TMP"
 
 # Private keys: a BEGIN ... PRIVATE KEY line followed within 3 lines by a base64 body.
 file_list \
@@ -154,7 +220,12 @@ file_list \
         $0 ~ re { if (index($0, "credential-scan:allow") == 0) { begin = NR } ; next }
         begin && NR - begin <= 3 {
           line = $0; gsub(/[[:space:]]/, "", line)
-          if (length(line) >= 40 && line ~ /^[A-Za-z0-9+\/=]+$/) { print p ":" begin ":private_key"; begin = 0 }
+          if (length(line) >= 40 && line ~ /^[A-Za-z0-9+\/=]+$/) {
+            # Value-shaped placeholder body: a run of x/X/*/0 or of one character.
+            t = tolower(line); gsub(/[x0=]/, "", t); c = substr(line, 1, 1); s = line; gsub(/[=]/, "", s)
+            same = 1; for (k = 2; k <= length(s); k++) if (substr(s, k, 1) != c) { same = 0; break }
+            if (t != "" && !same) { print p ":" begin ":private_key"; begin = 0 }
+          }
         }
         begin && NR - begin > 3 { begin = 0 }'
     done >> "$FIND_TMP"
