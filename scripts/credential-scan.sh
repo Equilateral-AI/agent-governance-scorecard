@@ -67,14 +67,16 @@ RE_GENERIC_ENV='^[[:space:]]*(export[[:space:]]+)?[A-Za-z0-9_]*(api_?key|secret|
 # Prints path:line:class for every match whose value is not placeholder-shaped.
 # Written without regex intervals so it runs on mawk, gawk and BSD awk.
 JUDGE_AWK='
-function is_placeholder(v,   lv, t, n, i, tk, c, same) {
+function is_placeholder(v, key,   lv, t, n, i, tk, c, same) {
   lv = tolower(v)
   if (length(v) == 0) return 1
   # References in value position.
   if (lv ~ /^[$%<]/ || index(lv, "${") || index(lv, "{{") || index(lv, "<")) return 1
   if (index(lv, "process.env") || index(lv, "os.environ") || index(lv, "getenv")) return 1
-  # Environment-variable NAME used as the value (e.g. bearer_token_env_var = SOME_TOKEN_NAME).
-  if (v ~ /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/) return 1
+  # Environment-variable NAME as the value, only where the key itself names an env
+  # reference (e.g. bearer_token_env_var = SOME_TOKEN_NAME). A quoted ALL_CAPS
+  # literal under a plain password/secret key is still flagged.
+  if (tolower(key) ~ /env/ && v ~ /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/) return 1
   # Masking runs: only x, *, 0, #, ., -, _ characters.
   t = lv; gsub(/[x*0#._-]/, "", t); if (t == "") return 1
   # One repeated character.
@@ -104,7 +106,7 @@ function value_of(cls, m,   v, k) {
   return v
 }
 BEGIN {
-  split("example examples sample samples placeholder changeme redacted dummy fake your yours replaceme replace_me insert here todo tbd", a, " ")
+  split("example examples sample samples placeholder placeholders changeme replaceme redacted dummy fake your", a, " ")
   for (i in a) PW[a[i]] = 1
   if (allow != "") while ((getline l < allow) > 0) A[l] = 1
 }
@@ -115,7 +117,8 @@ BEGIN {
   ln = substr(rest, 1, j - 1); m = substr(rest, j + 1)
   if ((path ":" ln) in A) next
   if (cls == "aws_access_key") { v = value_of(cls, m); if (v ~ /EXAMPLE$/) next }
-  if (is_placeholder(value_of(cls, m))) next
+  v = value_of(cls, m); k = index(m, v); key = (k > 1) ? substr(m, 1, k - 1) : ""
+  if (is_placeholder(v, key)) next
   print path ":" ln ":" outcls
 }'
 
