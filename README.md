@@ -1,5 +1,7 @@
 # Agent Governance Scorecard
 
+The Scorecard evaluates whether a platform architecturally supports governance. ([Canonical definition](https://equilateral.ai/definitions/agent-governance-scorecard/))
+
 Canonical mirror of the **Agent Governance Scorecard v1.0**, published January 2026.
 
 **Canonical URL**: [equilateral.ai/scorecard.html](https://equilateral.ai/scorecard.html)
